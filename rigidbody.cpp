@@ -2,7 +2,6 @@
 #include <iostream>
 //#include "mat.h"
 #include "vec.h"
-#include "gluvi.h"
 
 using namespace std;
 
