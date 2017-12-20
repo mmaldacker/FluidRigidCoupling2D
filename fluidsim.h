@@ -9,6 +9,8 @@
 
 #include <vector>
 
+void extrapolate(Array2f& grid, Array2c& valid);
+
 class FluidSim {
 
 public:
@@ -47,26 +49,31 @@ public:
    Array2f viscosity;
 
    std::vector<Vec2f> particles; //For marker particle simulation
+   std::vector<Vec2f> particles_velocity;
    float particle_radius;
+   Array2f sum;
    
    //Data arrays for extrapolation
    Array2c valid, old_valid;
 
    //Viscosity solver data
    PCGSolver<double> solver;
-   SparseMatrixd vmatrix;
-   std::vector<double> vrhs;
+   SparseMatrixd matrix;
+   std::vector<double> rhs;
+   std::vector<double> pressure;
    std::vector<double> velocities;
 
    Vec2f get_velocity(const Vec2f& position);
    Vec2f get_solid_velocity(const Vec2f& position);
    void add_particle(const Vec2f& position);
 
-private:
-
    Vec2f trace_rk2(const Vec2f& position, float dt);
 
    void advect_particles(float dt);
+
+   void accumulate(Array2f &accum, float q, int i, int j, float fx, float fy);
+   void transfer_to_grid();
+   void update_from_grid();
 
    void compute_phi();
 
