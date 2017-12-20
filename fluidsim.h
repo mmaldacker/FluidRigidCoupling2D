@@ -23,11 +23,11 @@ public:
    //Grid dimensions
    int ni,nj;
    float dx;
-   
+
    //Fluid velocity
    Array2f u, v;
    Array2f temp_u, temp_v;
-   
+
    //Static geometry representation
    Array2f nodal_solid_phi;
 
@@ -52,7 +52,7 @@ public:
    std::vector<Vec2f> particles_velocity;
    float particle_radius;
    Array2f sum;
-   
+
    //Data arrays for extrapolation
    Array2c valid, old_valid;
 
@@ -76,6 +76,7 @@ public:
    void update_from_grid();
 
    void compute_phi();
+   void extrapolate_phi();
 
    float cfl();
 
@@ -85,7 +86,7 @@ public:
 
    void apply_projection(float dt);
    void compute_pressure_weights();
-   
+
    void solve_pressure(float dt);
    void solve_pressure_indefinite(float dt);
 
