@@ -29,8 +29,12 @@ file(GLOB EXEC_SOURCES "gluvi.cpp" "openglutils.cpp" "main.cpp")
 add_library(fluidrigidcoupling2d_lib STATIC ${LIB_HEADERS} ${LIB_SOURCES})
 target_include_directories(fluidrigidcoupling2d_lib PUBLIC ./)
 
-find_package(GLUT)
-find_package(OpenGL)
+option(ENABLE_TEST_APP "Build the opengl test app" OFF)
 
-add_executable(fluidrigidcoupling2d ${EXEC_HEADERS} ${EXEC_SOURCES})
-target_link_libraries(fluidrigidcoupling2d fluidrigidcoupling2d_lib GLUT::GLUT OpenGL::GL OpenGL::GLU)
+if (ENABLE_TEST_APP)
+  find_package(GLUT REQUIRED)
+  find_package(OpenGL REQUIRED)
+
+  add_executable(fluidrigidcoupling2d ${EXEC_HEADERS} ${EXEC_SOURCES})
+  target_link_libraries(fluidrigidcoupling2d fluidrigidcoupling2d_lib GLUT::GLUT OpenGL::GL OpenGL::GLU)
+endif ()
