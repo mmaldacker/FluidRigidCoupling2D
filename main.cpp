@@ -27,9 +27,6 @@ bool draw_rbd = true;
 
 float grid_width = 1;
 
-bool indefinite_form = false; //False - Batty '07 linear system: SPD, but with dense chunks
-                              //True - Same numerics, but Robinson-Mosher '08 linear system: fully sparse, but symmetric indefinite.
-
 //both forms use finite volume face area weights as in Ng et al. 2009 (rather than volume fractions as in Batty '07).
 
 FluidSim sim;
@@ -81,7 +78,6 @@ int main(int argc, char **argv)
    
    //Set up the simulation
    sim.initialize(grid_width, grid_resolution, grid_resolution);
-   sim.indefinite_form = indefinite_form;
    
    //set up a circle boundary
    sim.set_boundary(boundary_phi);
@@ -147,7 +143,7 @@ void display(void)
       }
    }
 
-   if (draw_rbd) {
+   if (draw_rbd && sim.rbd) {
       glColor3f(0, 0, 0);
       Vec2f pos;
       sim.rbd->getCOM(pos);

@@ -18,8 +18,6 @@ public:
    void set_boundary(float (*phi)(const Vec2f&));
    void advance(float dt);
 
-   bool indefinite_form;
-
    //Grid dimensions
    int ni,nj;
    float dx;
@@ -88,13 +86,6 @@ public:
    void compute_pressure_weights();
 
    void solve_pressure(float dt);
-   void solve_pressure_indefinite(float dt);
-
-   int u_ind(int i, int j);
-   int v_ind(int i, int j);
-   void apply_viscosity(float dt);
-   void compute_viscosity_weights();
-   void solve_viscosity(float dt);
 
    void constrain_velocity();
    void process_collisions();

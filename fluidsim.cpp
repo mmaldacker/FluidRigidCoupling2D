@@ -49,8 +49,7 @@ void FluidSim::initialize(float width, int ni_, int nj_) {
     particle_radius = dx / sqrt(2.0f);
     viscosity.resize(ni, nj);
     viscosity.assign(0.005f);
-    indefinite_form = false;
-	rigid_u_mass = 0.0f;
+    rigid_u_mass = 0.0f;
     rigid_v_mass = 0.0f;
 
     /*
@@ -612,28 +611,9 @@ void FluidSim::extrapolate_phi()
 
 
 void FluidSim::apply_projection(float dt) {
-
     //Compute finite-volume type face area weight for each velocity sample.
     compute_pressure_weights();
-
-    //Set up and solve the variational pressure solve, in either SPD or indefinite forms.
-    if (!indefinite_form) {
-        solve_pressure(dt); //original Batty '07 style: SPD, but with dense blocks due to J'MJ terms
-    }
-    else {
-        solve_pressure_indefinite(dt); //Same algebra, but "undoing" the Schur complement to add rigid velocity as a variable. Sparse, but indefinite.
-    }
-
-}
-
-void FluidSim::apply_viscosity(float dt) {
-
-    //Estimate weights at velocity and stress positions
-    compute_viscosity_weights();
-
-    //Set up and solve the linear system
-    solve_viscosity(dt);
-
+    solve_pressure(dt); //original Batty '07 style: SPD, but with dense blocks due to J'MJ terms
 }
 
 //Apply RK2 to advect a point in the domain.
@@ -677,42 +657,6 @@ void FluidSim::compute_pressure_weights() {
         v_weights(i, j) = 1 - fraction_inside(nodal_solid_phi(i + 1, j), nodal_solid_phi(i, j)) - rigid_v_weights(i, j);
         v_weights(i, j) = clamp(v_weights(i, j), 0.0f, 1.0f);
     }
-
-}
-
-
-void compute_volume_fractions(const Array2f& levelset, Array2f& fractions, Vec2f fraction_origin, int subdivision) {
-
-    //Assumes levelset and fractions have the same dx
-    float sub_dx = 1.0f / subdivision;
-    int sample_max = subdivision*subdivision;
-    for (int j = 0; j < fractions.nj; ++j) {
-        for (int i = 0; i < fractions.ni; ++i) {
-            float start_x = fraction_origin[0] + (float)i;
-            float start_y = fraction_origin[1] + (float)j;
-            int incount = 0;
-
-            for (int sub_j = 0; sub_j < subdivision; ++sub_j) {
-                for (int sub_i = 0; sub_i < subdivision; ++sub_i) {
-                    float x_pos = start_x + (sub_i + 0.5f)*sub_dx;
-                    float y_pos = start_y + (sub_j + 0.5f)*sub_dx;
-                    float phi_val = interpolate_value(Vec2f(x_pos, y_pos), levelset);
-                    if (phi_val < 0)
-                        ++incount;
-                }
-            }
-            fractions(i, j) = (float)incount / (float)sample_max;
-        }
-    }
-
-}
-
-void FluidSim::compute_viscosity_weights() {
-
-    compute_volume_fractions(liquid_phi, c_vol, Vec2f(-0.5, -0.5), 2);
-    compute_volume_fractions(liquid_phi, n_vol, Vec2f(-1, -1), 2);
-    compute_volume_fractions(liquid_phi, u_vol, Vec2f(-1, -0.5), 2);
-    compute_volume_fractions(liquid_phi, v_vol, Vec2f(-0.5, -1), 2);
 
 }
 
@@ -877,21 +821,16 @@ void FluidSim::solve_pressure(float dt) {
     }
 
     //replace empty rows/cols to make (at least) positive semi-definite
-    /* TODO implement
-   for (int row = 0; row < Ematrix.outerSize(); ++row) {
-
-     //TODO: There has to be a way to extract this count intelligently in Eigen
-     //rather than simply counting.
+   for (unsigned row = 0; row < matrix.n; ++row) {
      int count = 0;
-     for (Eigen::SparseMatrix<double>::InnerIterator it(Ematrix, row); it; ++it){
-       ++count;
+     for (unsigned col = 0; col < matrix.n; col++){
+       if (matrix(row, col) != 0.0) ++count;
      }
      if (count == 0) {
-       Ematrix.coeffRef(row, row) = 1;
-       rhs[row] = 0;
+       matrix.set_element(row, row, 1.0);
+       rhs[row] = 0.0;
      }
    }
-   */
 
     //Solve the system using Robert Bridson's incomplete Cholesky PCG solver
     double tolerance;
@@ -954,25 +893,6 @@ void FluidSim::solve_pressure(float dt) {
         rbd->setLinearVelocity(updated_rigid_linear_velocity);
         rbd->setAngularMomentum(updated_rigid_angular_momentum);
     }
-}
-
-void FluidSim::solve_pressure_indefinite(float dt)
-{
-    // not implemented
-}
-
-
-int FluidSim::u_ind(int i, int j) {
-    return i + j*(ni + 1);
-}
-
-int FluidSim::v_ind(int i, int j) {
-    return i + j*ni + (ni + 1)*nj;
-}
-
-
-void FluidSim::solve_viscosity(float dt) {
-    // not implemented
 }
 
 //Apply several iterations of a very simple "Jacobi"-style propagation of valid velocity data in all directions
