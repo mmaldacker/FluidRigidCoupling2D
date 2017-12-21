@@ -821,13 +821,8 @@ void FluidSim::solve_pressure(float dt) {
     }
 
     //replace empty rows/cols to make (at least) positive semi-definite
-   for (unsigned row = 0; row < matrix.n; ++row) {
-     int count = 0;
-     for (unsigned col = 0; col < matrix.n; col++){
-       if (matrix(row, col) != 0.0) ++count;
-     }
-     if (count == 0) {
-       matrix.set_element(row, row, 1.0);
+   for (unsigned row = 0; row < matrix.n; row++) {
+     if (matrix.index[row].empty()) {
        rhs[row] = 0.0;
      }
    }
