@@ -444,14 +444,14 @@ void FluidSim::advect(float dt) {
     //semi-Lagrangian advection on u-component of velocity
     for (int j = 0; j < nj; ++j) for (int i = 0; i < ni + 1; ++i) {
         Vec2f pos(i*dx, (j + 0.5f)*dx);
-        pos = trace_rk2(pos, -dt);
+        pos = trace_rk3(pos, -dt);
         temp_u(i, j) = get_velocity(pos)[0];
     }
 
     //semi-Lagrangian advection on v-component of velocity
     for (int j = 0; j < nj + 1; ++j) for (int i = 0; i < ni; ++i) {
         Vec2f pos((i + 0.5f)*dx, j*dx);
-        pos = trace_rk2(pos, -dt);
+        pos = trace_rk3(pos, -dt);
         temp_v(i, j) = get_velocity(pos)[1];
     }
 
@@ -616,12 +616,18 @@ void FluidSim::apply_projection(float dt) {
     solve_pressure(dt); //original Batty '07 style: SPD, but with dense blocks due to J'MJ terms
 }
 
-//Apply RK2 to advect a point in the domain.
-Vec2f FluidSim::trace_rk2(const Vec2f& position, float dt) {
+//Apply RK3 to advect a point in the domain.
+Vec2f FluidSim::trace_rk3(const Vec2f& position, float dt) {
+
+    const float a = 2.0/9.0;
+    const float b = 3.0/9.0;
+    const float c = 4.0/9.0;
+
     Vec2f input = position;
-    Vec2f velocity = get_velocity(input);
-    velocity = get_velocity(input + 0.5f*dt*velocity);
-    input += dt*velocity;
+    Vec2f k1 = get_velocity(input);
+    Vec2f k2 = get_velocity(input + 0.5f*dt*k1);
+    Vec2f k3 = get_velocity(input + 0.75f*dt*k2);
+    input += dt*a*k1 + dt*b*k2 + dt*c*k3;
     return input;
 }
 
