@@ -619,9 +619,9 @@ void FluidSim::apply_projection(float dt) {
 //Apply RK3 to advect a point in the domain.
 Vec2f FluidSim::trace_rk3(const Vec2f& position, float dt) {
 
-    const float a = 2.0/9.0;
-    const float b = 3.0/9.0;
-    const float c = 4.0/9.0;
+    const float a = 2.0f/9.0f;
+    const float b = 3.0f/9.0f;
+    const float c = 4.0f/9.0f;
 
     Vec2f input = position;
     Vec2f k1 = get_velocity(input);
