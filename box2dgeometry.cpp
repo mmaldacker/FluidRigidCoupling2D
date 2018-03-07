@@ -29,16 +29,21 @@ float Box2DGeometry::get_signed_distance(const Vec2f& point) {
    if(y_top >= 0)
       positives.push_back(y_top);
 
+   float dist;
+
    if(positives.size() == 0)
-      return max(max(x_left,x_right),max(y_bottom, y_top));
+      dist = max(max(x_left,x_right),max(y_bottom, y_top));
    else if(positives.size() == 1)
-      return positives[0];
+      dist = positives[0];
    else if(positives.size() == 2)
-      return sqrt(sqr(positives[0])+ sqr(positives[1]));
+      dist = sqrt(sqr(positives[0])+ sqr(positives[1]));
    else {
       printf("I screwed this up.");
-      return 0;
+      dist = 0.0f;
    }
+
+   if (std::abs(dist) < 1e-6f) dist = 0.0f;
+   return dist;
 }
 
 void Box2DGeometry::project_out(Vec2f& point) {

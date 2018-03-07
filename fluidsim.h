@@ -42,10 +42,6 @@ public:
    Array2f liquid_phi; //extracted from particles
    Array2f u_weights, v_weights; //solid v.s. fluid face weights
 
-   //Data for viscosity solve
-   Array2f u_vol, v_vol, c_vol, n_vol;
-   Array2f viscosity;
-
    std::vector<Vec2f> particles; //For marker particle simulation
    std::vector<Vec2f> particles_velocity;
    float particle_radius;

@@ -27,16 +27,14 @@ void FluidSim::initialize(float width, int ni_, int nj_) {
     ni = ni_;
     nj = nj_;
     dx = width / (float)ni;
-    u.resize(ni + 1, nj); temp_u.resize(ni + 1, nj); u_weights.resize(ni + 1, nj); u_valid.resize(ni + 1, nj); u_vol.resize(ni + 1, nj);
-    v.resize(ni, nj + 1); temp_v.resize(ni, nj + 1); v_weights.resize(ni, nj + 1); v_valid.resize(ni, nj + 1); v_vol.resize(ni, nj + 1);
+    u.resize(ni + 1, nj); temp_u.resize(ni + 1, nj); u_weights.resize(ni + 1, nj); u_valid.resize(ni + 1, nj);
+    v.resize(ni, nj + 1); temp_v.resize(ni, nj + 1); v_weights.resize(ni, nj + 1); v_valid.resize(ni, nj + 1);
     solid_u.resize(ni + 1, nj); solid_v.resize(ni, nj + 1);
     solid_u.set_zero();
     solid_v.set_zero();
     rigid_u_weights.resize(ni + 1, nj); rigid_v_weights.resize(ni, nj + 1);
     rigid_u_weights.set_zero();
     rigid_v_weights.set_zero();
-    c_vol.resize(ni, nj);
-    n_vol.resize(ni + 1, nj + 1);
     u.set_zero();
     v.set_zero();
     sum.resize(ni+1,nj+1);
@@ -47,8 +45,6 @@ void FluidSim::initialize(float width, int ni_, int nj_) {
     old_valid.resize(ni + 1, nj + 1);
     liquid_phi.resize(ni, nj);
     particle_radius = dx / sqrt(2.0f);
-    viscosity.resize(ni, nj);
-    viscosity.assign(0.005f);
     rigid_u_mass = 0.0f;
     rigid_v_mass = 0.0f;
 
@@ -389,8 +385,8 @@ void FluidSim::update_rigid_body_grids()
         }
     }
 
-    for (int i = 0; i < v_vol.ni; ++i) {
-        for (int j = 1; j < v_vol.nj - 1; ++j) {
+    for (int i = 0; i < rigid_v_weights.ni; ++i) {
+        for (int j = 1; j < rigid_v_weights.nj; ++j) {
             float rigid_left = nodal_rigid_phi(i, j);
             float rigid_right = nodal_rigid_phi(i + 1, j);
             rigid_v_weights(i, j) = fraction_inside(rigid_left, rigid_right);
