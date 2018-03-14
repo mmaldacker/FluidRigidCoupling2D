@@ -23,7 +23,7 @@ public:
    float dx;
 
    //Fluid velocity
-   Array2f u, v;
+   Array2f u, v, du, dv;
    Array2f temp_u, temp_v;
 
    //Static geometry representation
@@ -50,7 +50,7 @@ public:
    //Data arrays for extrapolation
    Array2c valid, old_valid;
 
-   //Viscosity solver data
+   // Solver data
    PCGSolver<double> solver;
    SparseMatrixd matrix;
    std::vector<double> rhs;
@@ -67,7 +67,9 @@ public:
 
    void accumulate(Array2f &accum, float q, int i, int j, float fx, float fy);
    void transfer_to_grid();
-   void update_from_grid();
+   void update_from_grid(float alpha = 0.05f);
+   void save_velocity();
+   void get_velocity_update();
 
    void compute_phi();
    void extrapolate_phi();

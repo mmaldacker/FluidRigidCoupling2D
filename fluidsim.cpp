@@ -27,8 +27,8 @@ void FluidSim::initialize(float width, int ni_, int nj_) {
     ni = ni_;
     nj = nj_;
     dx = width / (float)ni;
-    u.resize(ni + 1, nj); temp_u.resize(ni + 1, nj); u_weights.resize(ni + 1, nj); u_valid.resize(ni + 1, nj);
-    v.resize(ni, nj + 1); temp_v.resize(ni, nj + 1); v_weights.resize(ni, nj + 1); v_valid.resize(ni, nj + 1);
+    u.resize(ni + 1, nj); temp_u.resize(ni + 1, nj); u_weights.resize(ni + 1, nj); u_valid.resize(ni + 1, nj); du.resize(ni + 1, nj);
+    v.resize(ni, nj + 1); temp_v.resize(ni, nj + 1); v_weights.resize(ni, nj + 1); v_valid.resize(ni, nj + 1); dv.resize(ni, nj + 1);
     solid_u.resize(ni + 1, nj); solid_v.resize(ni, nj + 1);
     solid_u.set_zero();
     solid_v.set_zero();
@@ -37,6 +37,8 @@ void FluidSim::initialize(float width, int ni_, int nj_) {
     rigid_v_weights.set_zero();
     u.set_zero();
     v.set_zero();
+    du.set_zero();
+    dv.set_zero();
     sum.resize(ni+1,nj+1);
     nodal_solid_phi.resize(ni + 1, nj + 1);
     nodal_rigid_phi.resize(ni + 1, nj + 1);
@@ -92,7 +94,6 @@ void FluidSim::advance(float dt) {
         //Passively advect particles
         advect_particles(substep);
 
-
         //Time integration of rigid bodies
         if (rbd) rbd->advance(substep);
 
@@ -107,9 +108,8 @@ void FluidSim::advance(float dt) {
 
         //Advance the velocity
         advect(substep);
+        save_velocity();
         add_force(substep);
-
-        //apply_viscosity(substep);
 
         apply_projection(substep);
 
@@ -550,18 +550,37 @@ void FluidSim::transfer_to_grid()
     }
 }
 
-void FluidSim::update_from_grid()
+void FluidSim::save_velocity()
 {
-    for(int p = 0; p < particles.size(); ++p)
+    du = u;
+    dv = v;
+}
+
+void FluidSim::get_velocity_update()
+{
+    for (int i = 0; i < du.size(); ++i)
+       du.a[i] = u.a[i] - du.a[i];
+    for (int i = 0; i < dv.size(); ++i)
+       dv.a[i] = v.a[i] - dv.a[i];
+}
+
+void FluidSim::update_from_grid(float alpha)
+{
+    for (int p = 0; p < particles.size(); ++p)
     {
         Vec2f point = particles[p];
 
         // FLIP
-        //u[p]+=Vec2f(grid.du.bilerp(ui, j, ufx, fy), grid.dv.bilerp(i, vj, fx, vfy));
+        float u_value = interpolate_value(point / dx - Vec2f(0, 0.5f), du);
+        float v_value = interpolate_value(point / dx - Vec2f(0.5f, 0), dv);
+
+        Vec2f flip_vel = Vec2f(u_value, v_value);
 
         // PIC
-        particles_velocity[p] = get_velocity(point);
-        //u[p]=Vec2f(grid.u.bilerp(ui, j, ufx, fy), grid.v.bilerp(i, vj, fx, vfy));
+        Vec2f pic_vel = get_velocity(point);
+
+        particles_velocity[p][0] = alpha * pic_vel[0] + (1.0f - alpha) * flip_vel[0];
+        particles_velocity[p][1] = alpha * pic_vel[1] + (1.0f - alpha) * flip_vel[1];
     }
 }
 
@@ -707,7 +726,6 @@ void FluidSim::solve_pressure(float dt) {
             pressure[index] = 0;
             float centre_phi = liquid_phi(i, j);
             if (centre_phi < 0) {
-
                 //right neighbour
                 float term = u_weights(i + 1, j) * dt / sqr(dx);
                 if (term > 0) {
