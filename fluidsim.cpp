@@ -681,32 +681,45 @@ void FluidSim::compute_pressure_weights() {
 
 }
 
+void FluidSim::compute_base_trans(Array2d& base_trans_x, Array2d& base_trans_y, Array2d& base_rot_z)
+{
+  assert(rbd);
+  Vec2f centre_of_mass;
+  rbd->getCOM(centre_of_mass);
+
+  base_trans_x.set_zero();
+  base_trans_y.set_zero();
+  base_rot_z.set_zero();
+
+  for (int j = 0; j != nj; ++j) {
+    for (int i = 0; i != ni; ++i) {
+      float centre_phi = liquid_phi(i, j);
+      if (centre_phi < 0) {
+        double u_term = (rigid_u_weights(i + 1, j) - rigid_u_weights(i, j));
+        double v_term = (rigid_v_weights(i, j + 1) - rigid_v_weights(i, j));
+
+        // Translation coupling
+        base_trans_x(i, j) = u_term / dx;
+        base_trans_y(i, j) = v_term / dx;
+
+        // Rotation coupling
+        Vec2f position((i + 0.5f), (j + 0.5f));
+        Vec2f rad = position - centre_of_mass / dx;
+        base_rot_z(i, j) = rad[0] * v_term - rad[1] * u_term;
+      }
+    }
+  }
+}
+
 //An implementation of the variational pressure projection solve for static geometry
 void FluidSim::solve_pressure(float dt) {
 
     // Assemble the data for the J vectors
     Array2d base_trans_x(ni, nj), base_trans_y(ni, nj), base_rot_z(ni, nj);
-    Vec2f centre_of_mass;
     if (rbd)
     {
-        rbd->getCOM(centre_of_mass);
-
-	    for (int j = 0; j != nj; ++j) {
-	        for (int i = 0; i != ni; ++i) {
-	            double u_term = (rigid_u_weights(i + 1, j) - rigid_u_weights(i, j)) / dx;
-	            double v_term = (rigid_v_weights(i, j + 1) - rigid_v_weights(i, j)) / dx;
-
-	            // Translation coupling
-	            base_trans_x(i, j) = u_term;
-	            base_trans_y(i, j) = v_term;
-
-	            // Rotation coupling
-	            Vec2f position((i + 0.5f) * dx, (j + 0.5f) * dx);
-	            Vec2f rad = position - centre_of_mass;
-	            base_rot_z(i, j) = rad[0] * v_term - rad[1] * u_term;
-	        }
-	    }
-	}
+      compute_base_trans(base_trans_x, base_trans_y, base_rot_z);
+    }
 
     int ni = v.ni;
     int nj = u.nj;

@@ -82,6 +82,7 @@ public:
 
    void apply_projection(float dt);
    void compute_pressure_weights();
+   void compute_base_trans(Array2d& base_trans_x, Array2d& base_trans_y, Array2d& base_rot_z);
 
    void solve_pressure(float dt);
 
