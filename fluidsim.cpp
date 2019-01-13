@@ -366,13 +366,13 @@ void FluidSim::update_rigid_body_grids()
 {
     if (!rbd) return;
 
-	//update level set from current position
-	for (int j = 0; j < nj + 1; ++j) {
-		for (int i = 0; i < ni + 1; ++i) {
-			Vec2f location(i*dx, j*dx);
-			nodal_rigid_phi(i, j) = rbd->getSignedDist(location);
-		}
-	}
+    //update level set from current position
+    for (int j = 0; j < nj + 1; ++j) {
+        for (int i = 0; i < ni + 1; ++i) {
+            Vec2f location(i*dx, j*dx);
+            nodal_rigid_phi(i, j) = rbd->getSignedDist(location);
+        }
+    }
 
     //compute face area fractions from distance field
     rigid_u_weights.set_zero();
@@ -393,12 +393,12 @@ void FluidSim::update_rigid_body_grids()
         }
     }
 
-	//recompute the grid-based "effective" masses per axis, so that we can *exactly*
-	//balance in hydrostatic scenarios.
-	double u_sum = std::accumulate(rigid_u_weights.a.begin(), rigid_u_weights.a.end(), 0.0);
-	double v_sum = std::accumulate(rigid_v_weights.a.begin(), rigid_v_weights.a.end(), 0.0);
-	rigid_u_mass = rbd->getDensity() * (float)u_sum;
-	rigid_v_mass = rbd->getDensity() * (float)v_sum;
+    //recompute the grid-based "effective" masses per axis, so that we can *exactly*
+    //balance in hydrostatic scenarios.
+    double u_sum = std::accumulate(rigid_u_weights.a.begin(), rigid_u_weights.a.end(), 0.0);
+    double v_sum = std::accumulate(rigid_v_weights.a.begin(), rigid_v_weights.a.end(), 0.0);
+    rigid_u_mass = rbd->getDensity() * (float)u_sum;
+    rigid_v_mass = rbd->getDensity() * (float)v_sum;
 }
 
 void FluidSim::recompute_solid_velocity()
@@ -456,16 +456,19 @@ void FluidSim::advect(float dt) {
     v = temp_v;
 }
 
-//Perform 2nd order Runge Kutta to move the particles in the fluid
+//Perform 3rd order Runge Kutta to move the particles in the fluid
 void FluidSim::advect_particles(float dt) {
 
+    const float a = 2.0f/9.0f;
+    const float b = 3.0f/9.0f;
+    const float c = 4.0f/9.0f;
+
     for (unsigned int p = 0; p < particles.size(); ++p) {
-        Vec2f before = particles[p];
-        Vec2f start_velocity = get_velocity(before);
-        Vec2f midpoint = before + 0.5f*dt*start_velocity;
-        Vec2f mid_velocity = get_velocity(midpoint);
-        particles[p] += dt*mid_velocity;
-        Vec2f after = particles[p];
+        Vec2f input = particles[p];
+        Vec2f k1 = get_velocity(input);
+        Vec2f k2 = get_velocity(input + 0.5f*dt*k1);
+        Vec2f k3 = get_velocity(input + 0.75f*dt*k2);
+        particles[p] += dt*a*k1 + dt*b*k2 + dt*c*k3;
 
         //Particles can still occasionally leave the domain due to truncation errors,
         //interpolation error, or large timesteps, so we project them back in for good measure.
