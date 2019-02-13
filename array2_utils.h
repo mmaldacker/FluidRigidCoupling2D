@@ -12,11 +12,32 @@ T interpolate_value(const Vec<2,S>& point, const Array2<T, Array1<T> >& grid) {
 
    get_barycentric(point[0], i, fx, 0, grid.ni);
    get_barycentric(point[1], j, fy, 0, grid.nj);
-   
+
    return bilerp(
-      grid(i,j), grid(i+1,j), 
-      grid(i,j+1), grid(i+1,j+1), 
+      grid(i,j), grid(i+1,j),
+      grid(i,j+1), grid(i+1,j+1),
       fx, fy);
+}
+
+template<class S, class T>
+T bicubic_interpolate_value(const Vec<2,S>& point, const Array2<T, Array1<T> >& grid) {
+    int i,j;
+    S fx,fy;
+
+    get_barycentric(point[0], i, fx, 1, grid.ni - 1);
+    get_barycentric(point[1], j, fy, 1, grid.nj - 1);
+
+    T v = cubic_interp(
+        cubic_interp(grid(i-1,j-1), grid(i,j-1), grid(i+1,j-1), grid(i+2,j-1), fx),
+        cubic_interp(grid(i-1,j), grid(i,j), grid(i+1,j), grid(i+2,j), fx),
+        cubic_interp(grid(i-1,j+1), grid(i,j+1), grid(i+1,j+1), grid(i+2,j+1), fx),
+        cubic_interp(grid(i-1,j+2), grid(i,j+2), grid(i+1,j+2), grid(i+2,j+2), fx),
+        fy);
+
+    T maxValue = max(max(grid(i,j), grid(i+1,j)), max(grid(i+1,j), grid(i+1,j+1)));
+    T minValue = min(min(grid(i,j), grid(i+1,j)), min(grid(i,j+1), grid(i+1,j+1)));
+
+    return clamp(v, minValue, maxValue);
 }
 
 template<class S, class T>
@@ -39,7 +60,7 @@ float interpolate_gradient(Vec<2,T>& gradient, const Vec<2,S>& point, const Arra
 
    gradient[0] = lerp(ddx0,ddx1,fy);
    gradient[1] = lerp(ddy0,ddy1,fx);
-   
+
    //may as well return value too
    return bilerp(v00, v10, v01, v11, fx, fy);
 }

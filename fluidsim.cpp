@@ -574,8 +574,8 @@ void FluidSim::update_from_grid(float alpha)
         Vec2f point = particles[p];
 
         // FLIP
-        float u_value = interpolate_value(point / dx - Vec2f(0, 0.5f), du);
-        float v_value = interpolate_value(point / dx - Vec2f(0.5f, 0), dv);
+        float u_value = bicubic_interpolate_value(point / dx - Vec2f(0, 0.5f), du);
+        float v_value = bicubic_interpolate_value(point / dx - Vec2f(0.5f, 0), dv);
 
         Vec2f flip_vel = Vec2f(u_value, v_value);
 
@@ -653,8 +653,8 @@ Vec2f FluidSim::trace_rk3(const Vec2f& position, float dt) {
 Vec2f FluidSim::get_velocity(const Vec2f& position) {
 
     //Interpolate the velocity from the u and v grids
-    float u_value = interpolate_value(position / dx - Vec2f(0, 0.5f), u);
-    float v_value = interpolate_value(position / dx - Vec2f(0.5f, 0), v);
+    float u_value = bicubic_interpolate_value(position / dx - Vec2f(0, 0.5f), u);
+    float v_value = bicubic_interpolate_value(position / dx - Vec2f(0.5f, 0), v);
 
     return Vec2f(u_value, v_value);
 }
