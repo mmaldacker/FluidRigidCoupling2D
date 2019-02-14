@@ -34,7 +34,7 @@ T bicubic_interpolate_value(const Vec<2,S>& point, const Array2<T, Array1<T> >& 
         cubic_interp(grid(i-1,j+2), grid(i,j+2), grid(i+1,j+2), grid(i+2,j+2), fx),
         fy);
 
-    T maxValue = max(max(grid(i,j), grid(i+1,j)), max(grid(i+1,j), grid(i+1,j+1)));
+    T maxValue = max(max(grid(i,j), grid(i+1,j)), max(grid(i,j+1), grid(i+1,j+1)));
     T minValue = min(min(grid(i,j), grid(i+1,j)), min(grid(i,j+1), grid(i+1,j+1)));
 
     return clamp(v, minValue, maxValue);
