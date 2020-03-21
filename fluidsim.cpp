@@ -23,6 +23,15 @@ float circle_phi(const Vec2f &pos) {
   return min(phi0, phi1);
 }
 
+float kernel(float s) {
+  if (s < 1.0) {
+    float t = 1 - s;
+    return t * t * t;
+  }
+
+  return 0.0;
+}
+
 void FluidSim::initialize(float width, int ni_, int nj_) {
   ni = ni_;
   nj = nj_;
@@ -56,7 +65,7 @@ void FluidSim::initialize(float width, int ni_, int nj_) {
   valid.resize(ni + 1, nj + 1);
   old_valid.resize(ni + 1, nj + 1);
   liquid_phi.resize(ni, nj);
-  particle_radius = dx / sqrt(2.0f);
+  particle_radius = 1.0f / sqrt(2.0f);
   rigid_u_mass = 0.0f;
   rigid_v_mass = 0.0f;
 
@@ -76,7 +85,6 @@ void FluidSim::initialize(float width, int ni_, int nj_) {
 // Initialize the grid-based signed distance field that dictates the position of
 // the solid boundary
 void FluidSim::set_boundary(float (*phi)(const Vec2f &)) {
-
   for (int j = 0; j < nj + 1; ++j)
     for (int i = 0; i < ni + 1; ++i) {
       Vec2f pos(i * dx, j * dx);
@@ -145,7 +153,6 @@ void FluidSim::advance(float dt) {
 }
 
 void FluidSim::add_force(float dt) {
-
   for (int j = 0; j < nj + 1; ++j)
     for (int i = 0; i < ni; ++i) {
       v(i, j) -= 0.1f * dt;
@@ -230,7 +237,6 @@ void FluidSim::constrain_velocity() {
 }
 
 void FluidSim::process_collisions() {
-
   if (!rbd)
     return;
   // Handle rigid body/rigid body collisions.
@@ -252,7 +258,6 @@ void FluidSim::process_collisions() {
   Vec2f min_normal;
   std::vector<unsigned int> penetrating_points;
   for (unsigned int i = 0; i < vertices.size(); ++i) {
-
     float phi;
     Vec2f normal;
     Vec2f vertex(vertices[i][0], vertices[i][1]);
@@ -353,7 +358,6 @@ void FluidSim::process_collisions() {
     min_ind = -1;
     min_normal = Vec2f(0, 0);
     for (unsigned int i = 0; i < vertices.size(); ++i) {
-
       float phi;
       Vec2f normal;
       Vec2f vertex(vertices[i][0], vertices[i][1]);
@@ -452,7 +456,6 @@ void FluidSim::add_particle(const Vec2f &position) {
 
 // Basic first order semi-Lagrangian advection of velocities
 void FluidSim::advect(float dt) {
-
   // semi-Lagrangian advection on u-component of velocity
   for (int j = 0; j < nj; ++j)
     for (int i = 0; i < ni + 1; ++i) {
@@ -476,7 +479,6 @@ void FluidSim::advect(float dt) {
 
 // Perform 3rd order Runge Kutta to move the particles in the fluid
 void FluidSim::advect_particles(float dt) {
-
   const float a = 2.0f / 9.0f;
   const float b = 3.0f / 9.0f;
   const float c = 4.0f / 9.0f;
@@ -603,27 +605,57 @@ void FluidSim::update_from_grid(float alpha) {
 }
 
 void FluidSim::compute_phi() {
+  const int off = 1;
+  const float h = 2.0 * particle_radius;
+  liquid_phi.assign(2.0f * dx);
 
-  // Estimate from particles
-  liquid_phi.assign(3 * dx);
+  struct Weights {
+    Vec2f x = Vec2f(0.0);
+    float r = 0.0;
+    float sum = 0.0;
+  };
+
+  std::vector<Weights> weights;
+  weights.resize(ni * nj);
+
+  // Estimate from particle
   for (unsigned int p = 0; p < particles.size(); ++p) {
-    Vec2f point = particles[p];
+    Vec2f point(particles[p][0] / dx, particles[p][1] / dx);
     int i, j;
     float fx, fy;
-    // determine containing cell;
-    get_barycentric((point[0]) / dx - 0.5f, i, fx, 0, ni);
-    get_barycentric((point[1]) / dx - 0.5f, j, fy, 0, nj);
 
-    // compute distance to surrounding few points, keep if it's the minimum
-    for (int j_off = j - 2; j_off <= j + 2; ++j_off)
-      for (int i_off = i - 2; i_off <= i + 2; ++i_off) {
+    // determine containing cell;
+    get_barycentric(point[0], i, fx, 0, ni);
+    get_barycentric(point[1], j, fy, 0, nj);
+
+    for (int j_off = j - off; j_off <= j + off; ++j_off) {
+      for (int i_off = i - off; i_off <= i + off; ++i_off) {
         if (i_off < 0 || i_off >= ni || j_off < 0 || j_off >= nj)
           continue;
 
-        Vec2f pos((i_off + 0.5f) * dx, (j_off + 0.5f) * dx);
-        float phi_temp = dist(pos, point) - 1.02f * particle_radius;
-        liquid_phi(i_off, j_off) = min(liquid_phi(i_off, j_off), phi_temp);
+        Vec2f pos(i_off + 0.5f, j_off + 0.5f);
+        Vec2f dist = pos - point;
+
+        float w = kernel(dot(dist, dist) / (h * h));
+
+        auto &currentWeights = weights[i_off + j_off * nj];
+        currentWeights.x += w * point;
+        currentWeights.r += w * particle_radius;
+        currentWeights.sum += w;
       }
+    }
+  }
+
+  for (int j = 0; j < nj; ++j) {
+    for (int i = 0; i < ni; ++i) {
+      const auto &currentWeights = weights[i + j * nj];
+      if (currentWeights.sum != 0.0) {
+        Vec2f pos(i + 0.5f, j + 0.5f);
+        liquid_phi(i, j) = (dist(pos, currentWeights.x / currentWeights.sum) -
+                            currentWeights.r / currentWeights.sum) *
+                           dx;
+      }
+    }
   }
 }
 
@@ -651,7 +683,6 @@ void FluidSim::apply_projection(float dt) {
 
 // Apply RK3 to advect a point in the domain.
 Vec2f FluidSim::trace_rk3(const Vec2f &position, float dt) {
-
   const float a = 2.0f / 9.0f;
   const float b = 3.0f / 9.0f;
   const float c = 4.0f / 9.0f;
@@ -666,7 +697,6 @@ Vec2f FluidSim::trace_rk3(const Vec2f &position, float dt) {
 
 // Interpolate velocity from the MAC grid.
 Vec2f FluidSim::get_velocity(const Vec2f &position) {
-
   // Interpolate the velocity from the u and v grids
   float u_value = bicubic_interpolate_value(position / dx - Vec2f(0, 0.5f), u);
   float v_value = bicubic_interpolate_value(position / dx - Vec2f(0.5f, 0), v);
@@ -675,7 +705,6 @@ Vec2f FluidSim::get_velocity(const Vec2f &position) {
 }
 
 Vec2f FluidSim::get_solid_velocity(const Vec2f &position) {
-
   // Interpolate the velocity from the u and v grids
   float u_value = interpolate_value(position / dx - Vec2f(0, 0.5f), solid_u);
   float v_value = interpolate_value(position / dx - Vec2f(0.5f, 0), solid_v);
@@ -686,7 +715,6 @@ Vec2f FluidSim::get_solid_velocity(const Vec2f &position) {
 // Compute finite-volume style face-weights for fluid from nodal signed
 // distances
 void FluidSim::compute_pressure_weights() {
-
   // recompute the face area weights, consider static and dynamic solid
   for (int j = 0; j < u_weights.nj; ++j)
     for (int i = 0; i < u_weights.ni; ++i) {
@@ -739,7 +767,6 @@ void FluidSim::compute_base_trans(Array2d &base_trans_x, Array2d &base_trans_y,
 // An implementation of the variational pressure projection solve for static
 // geometry
 void FluidSim::solve_pressure(float dt) {
-
   // Assemble the data for the J vectors
   Array2d base_trans_x(ni, nj), base_trans_y(ni, nj), base_rot_z(ni, nj);
   if (rbd) {
@@ -844,7 +871,6 @@ void FluidSim::solve_pressure(float dt) {
         int index = i + ni * j;
         float centre_phi = liquid_phi(i, j);
         if (centre_phi < 0) {
-
           // RHS contributions...
           // Translation
           rhs[index] -= solidLinearVelocity[0] * base_trans_x(i, j);
@@ -961,7 +987,6 @@ void FluidSim::solve_pressure(float dt) {
 // Apply several iterations of a very simple "Jacobi"-style propagation of valid
 // velocity data in all directions
 void extrapolate(Array2f &grid, Array2c &valid) {
-
   Array2c old_valid(valid.ni, valid.nj);
   for (int layers = 0; layers < 10; ++layers) {
     old_valid = valid;
@@ -972,7 +997,6 @@ void extrapolate(Array2f &grid, Array2c &valid) {
         int count = 0;
 
         if (!old_valid(i, j)) {
-
           if (old_valid(i + 1, j)) {
             sum += grid(i + 1, j);
             ++count;
